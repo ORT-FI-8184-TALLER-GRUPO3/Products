@@ -20,7 +20,7 @@ jobs:
       - name: Invoke Reusable CI/CD Workflow
         uses: ORT-FI-8184-TALLER-GRUPO3/Devops/.github/workflows/cicd.yml@main
         with:
+          pom_path: 'pom.xml'
           service: 'products-service'
           target: ${{ github.ref_name }}
           secrets: inherit
- 	  pom_path: 'pom.xml'
