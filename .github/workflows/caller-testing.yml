@@ -1,6 +1,6 @@
 name: caller-testing
 on:
-  workflow_call:
+  workflow_dispatch:
 
 env:
   GH_TOKEN: ${{ github.token }}
