@@ -3,5 +3,62 @@ on:
   workflow_dispatch:
 
 jobs:
-  ReuseableJobForCICD:
-    uses: ORT-FI-8184-TALLER-GRUPO3/Devops/.github/workflows/backend-testing.yml@main
+  build_analysis_job:
+
+    runs-on: ubuntu-22.04
+    
+    name: Building with Maven and Code Analysis with SonarCloud
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          
+      - name: Code Analysis with SonarCloud
+        run: |
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.token=${{ env.SONAR_TOKEN }}  
+      
+      - name: Building with Maven
+        run: |
+          mvn clean
+          mvn package
+
+      - name: Upload Artifact with JAR file
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.REPO_NAME }}-JAR-${{ github.run_id }}
+          path: target/${{ env.REPO_NAME }}-example.jar
+  test_job:
+    if: github.event.repository.name != 'orders-service'
+    needs: build_analysis_job
+    runs-on: ubuntu-22.04
+    
+    name: Postman Test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifact with JAR file
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.REPO_NAME }}-JAR-${{ github.run_id }}
+      
+      - name: Building environment
+        run: | 
+          java -jar ${{ env.REPO_NAME }}-example.jar --server.port=8080 &
+
+      - name: Install Postman CLI
+        run: curl -o- "https://dl-cli.pstmn.io/install/linux64.sh" | sh
+
+      - name: Login to Postman CLI
+        run:  postman login --with-api-key ${{ env.POSTMAN_API_KEY }}
+
+      - name: Get Postman JSON File 
+        run: |
+          curl -H 'Authorization: token ${{ env.GH_TOKEN }}' \
+          -H 'Accept: application/vnd.github.v3.raw' \
+          -O -L 'https://raw.githubusercontent.com/ORT-FI-8184-TALLER-GRUPO3/Devops/main/TestingBackend/testing-backend-service.json' 
+          
+      - name: Run API tests using Postman CLI
+        run: postman collection run $testing-backend-service.json
